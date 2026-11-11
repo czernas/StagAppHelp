@@ -1,0 +1,44 @@
+# Builds the app's Help from topics/ and publishes it on GitHub Pages:
+#   https://czernas.github.io/StagAppHelp/help_cs.json, …/help_en.json
+# A pull request is only checked. A push to main publishes, and only if the whole build passes, so a broken topic
+# never reaches the app: it keeps the last good JSON.
+name: Help
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the help JSON
+        run: python3 scripts/build_help.py
+      - name: Upload for Pages
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
